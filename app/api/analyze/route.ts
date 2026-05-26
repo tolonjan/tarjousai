@@ -2,15 +2,18 @@ import OpenAI from "openai";
 
 export const runtime = "nodejs";
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 export async function POST(request: Request) {
   try {
-    if (!process.env.OPENAI_API_KEY) {
-      return Response.json({ error: "OPENAI_API_KEY puuttuu Vercelin Environment Variables -asetuksista." }, { status: 500 });
+    const apiKey = process.env.OPENAI_API_KEY;
+
+    if (!apiKey) {
+      return Response.json(
+        { error: "OPENAI_API_KEY puuttuu Vercelin Environment Variables -asetuksista." },
+        { status: 500 }
+      );
     }
+
+    const client = new OpenAI({ apiKey });
 
     const formData = await request.formData();
     const file = formData.get("file");
@@ -20,19 +23,22 @@ export async function POST(request: Request) {
     }
 
     if (file.size > 8 * 1024 * 1024) {
-      return Response.json({ error: "Tiedosto on liian suuri tähän demoon. Käytä alle 8 Mt PDF:ää." }, { status: 400 });
+      return Response.json(
+        { error: "Tiedosto on liian suuri tähän demoon. Käytä alle 8 Mt PDF:ää." },
+        { status: 400 }
+      );
     }
 
     const bytes = Buffer.from(await file.arrayBuffer());
     const base64 = bytes.toString("base64");
 
     const response = await client.responses.create({
-      model: process.env.OPENAI_MODEL || "gpt-5.5",
+      model: process.env.OPENAI_MODEL || "gpt-4.1",
       input: [
         {
           role: "system",
           content:
-            "Olet suomalainen tarjousasiantuntija. Analysoit tarjouspyyntöjä yrityksille. Vastaa suomeksi, käytännöllisesti ja selkeässä muodossa. Älä keksi tietoja, joita aineistosta ei löydy.",
+            "Olet suomalainen tarjousasiantuntija. Analysoit tarjouspyyntöjä yrityksille. Vastaa suomeksi, käytännöllisesti ja selkeästi. Älä keksi tietoja, joita aineistosta ei löydy.",
         },
         {
           role: "user",
@@ -55,6 +61,9 @@ export async function POST(request: Request) {
     return Response.json({ result: response.output_text });
   } catch (error) {
     console.error(error);
-    return Response.json({ error: "Analyysi epäonnistui. Tarkista API-avain, malli ja PDF-tiedosto." }, { status: 500 });
+    return Response.json(
+      { error: "Analyysi epäonnistui. Tarkista API-avain, malli ja PDF-tiedosto." },
+      { status: 500 }
+    );
   }
 }
